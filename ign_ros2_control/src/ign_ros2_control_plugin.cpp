@@ -44,6 +44,8 @@
 #include "ign_ros2_control/ign_ros2_control_plugin.hpp"
 #include "ign_ros2_control/ign_system.hpp"
 
+using namespace std::chrono_literals;
+
 namespace ign_ros2_control
 {
 //////////////////////////////////////////////////
@@ -208,7 +210,11 @@ std::string IgnitionROS2ControlPluginPrivate::getURDF() const
 
     try {
       auto f = parameters_client->get_parameters({this->robot_description_});
-      f.wait();
+      std::future_status status = f.wait_for(1s);
+      if (status == std::future_status::timeout)
+      {
+        throw std::runtime_error("A timeout occurred when trying to fetch robot_description_param");
+      }
       std::vector<rclcpp::Parameter> values = f.get();
       urdf_string = values[0].as_string();
     } catch (const std::exception & e) {
