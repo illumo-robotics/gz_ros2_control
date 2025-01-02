@@ -182,8 +182,13 @@ bool IgnitionSystem::initSim(
 
   constexpr double default_gain = 0.1;
 
-  this->dataPtr->position_proportional_gain_ = this->nh_->declare_parameter<double>(
-    "position_proportional_gain", default_gain);
+  try {
+    this->dataPtr->position_proportional_gain_ = this->nh_->declare_parameter<double>(
+      "position_proportional_gain", default_gain);
+  } catch (rclcpp::exceptions::ParameterAlreadyDeclaredException & ex) {
+    this->nh_->get_parameter(
+      "position_proportional_gain", this->dataPtr->position_proportional_gain_);
+  }
 
   RCLCPP_INFO_STREAM(
     this->nh_->get_logger(),
@@ -198,6 +203,14 @@ bool IgnitionSystem::initSim(
   for (unsigned int j = 0; j < this->dataPtr->n_dof_; j++) {
     auto & joint_info = hardware_info.joints[j];
     std::string joint_name = this->dataPtr->joints_[j].name = joint_info.name;
+
+    auto it = enableJoints.find(joint_name);
+    if (it == enableJoints.end()) {
+      RCLCPP_WARN_STREAM(
+        this->nh_->get_logger(), "Skipping joint in the URDF named '" << joint_name <<
+          "' which is not in the gazebo model.");
+      continue;
+    }
 
     ignition::gazebo::Entity simjoint = enableJoints[joint_name];
     this->dataPtr->joints_[j].sim_joint = simjoint;
@@ -277,7 +290,8 @@ bool IgnitionSystem::initSim(
       }
       RCLCPP_INFO_STREAM(
         this->nh_->get_logger(),
-        "Joint '" << joint_name << "'is mimicking joint '" << mimicked_joint << "' with mutiplier: "
+        "Joint '" << joint_name << "'is mimicking joint '"
+                  << mimicked_joint << "' with multiplier: "
                   << mimic_joint.multiplier);
       this->dataPtr->mimic_joints_.push_back(mimic_joint);
       suffix = "_mimic";
@@ -515,6 +529,10 @@ hardware_interface::return_type IgnitionSystem::read(
   const rclcpp::Duration & /*period*/)
 {
   for (unsigned int i = 0; i < this->dataPtr->joints_.size(); ++i) {
+    if (this->dataPtr->joints_[i].sim_joint == ignition::gazebo::v6::kNullEntity) {
+      continue;
+    }
+
     // Get the joint velocity
     const auto * jointVelocity =
       this->dataPtr->ecm->Component<ignition::gazebo::components::JointVelocity>(
@@ -607,6 +625,10 @@ hardware_interface::return_type IgnitionSystem::write(
   const rclcpp::Duration & /*period*/)
 {
   for (unsigned int i = 0; i < this->dataPtr->joints_.size(); ++i) {
+    if (this->dataPtr->joints_[i].sim_joint == ignition::gazebo::v6::kNullEntity) {
+      continue;
+    }
+
     if (this->dataPtr->joints_[i].joint_control_method & VELOCITY) {
       if (!this->dataPtr->ecm->Component<ignition::gazebo::components::JointVelocityCmd>(
           this->dataPtr->joints_[i].sim_joint))
