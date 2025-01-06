@@ -401,9 +401,16 @@ void IgnitionROS2ControlPlugin::Configure(
 
   try {
     resource_manager_->load_urdf(urdf_string, false, false);
-  } catch (...) {
+  }
+  catch (std::exception &ex)
+  {
     RCLCPP_ERROR(
-      this->dataPtr->node_->get_logger(), "Error initializing URDF to resource manager!");
+        this->dataPtr->node_->get_logger(), "Error initializing URDF to resource manager: %s ", ex.what());
+  }
+  catch (...)
+  {
+    RCLCPP_ERROR(
+        this->dataPtr->node_->get_logger(), "Unknown error initializing URDF to resource manager ");
   }
   try {
     this->dataPtr->robot_hw_sim_loader_.reset(

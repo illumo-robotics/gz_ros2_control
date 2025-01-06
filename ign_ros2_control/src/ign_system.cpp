@@ -484,7 +484,7 @@ void IgnitionSystem::registerSensors(
 CallbackReturn
 IgnitionSystem::on_init(const hardware_interface::HardwareInfo & system_info)
 {
-  RCLCPP_WARN(this->nh_->get_logger(), "On init...");
+  RCLCPP_INFO(this->nh_->get_logger(), "On init...");
   if (hardware_interface::SystemInterface::on_init(system_info) != CallbackReturn::SUCCESS) {
     return CallbackReturn::ERROR;
   }
